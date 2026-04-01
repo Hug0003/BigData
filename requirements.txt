@@ -1,3 +1,7 @@
 requests
 minio
 python-dotenv
+pandas
+psycopg2-binary
+sqlalchemy
+ipykernel

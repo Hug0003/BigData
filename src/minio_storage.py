@@ -64,3 +64,17 @@ class MinioStorage:
         except S3Error as e:
             logger.error(f"Error saving data to MinIO: {e}")
             raise
+
+    def get_json(self, object_name: str) -> dict:
+        """Retrieves a JSON object from MinIO and returns it as a Python dictionary."""
+        try:
+            response = self.client.get_object(self.bucket_name, object_name)
+            data = json.loads(response.read().decode('utf-8'))
+            return data
+        except Exception as e:
+            logger.error(f"Error reading {object_name} from MinIO: {e}")
+            raise
+        finally:
+            if 'response' in locals():
+                response.close()
+            response.release_conn()
