@@ -1,0 +1,21 @@
+# Environments
+.env
+venv/
+.venv/
+env/
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+
+# IDEs / Editors
+.vscode/
+.idea/
+
+# Docker Volumes
+postgres_data/
+minio_data/
+
+# Credentials
+credentials.json
+*.pem
