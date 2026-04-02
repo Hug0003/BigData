@@ -9,3 +9,5 @@ reverse_geocoder
 pycountry
 streamlit
 plotly
+geopandas
+pooch
