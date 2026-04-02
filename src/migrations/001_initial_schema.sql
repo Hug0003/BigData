@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS aircraft_states (
     origin_country       VARCHAR(100),                    -- pays d'immatriculation (source OpenSky)
     current_country      VARCHAR(100),                    -- pays survolé (reverse geocoding GPS)
     current_country_code CHAR(2),                         -- code ISO-3166-1 alpha-2
-    destination_country  VARCHAR(100),                    -- pays de destination (AeroAPI, NULL pour l'instant)
+
     longitude            DOUBLE PRECISION,                -- longitude actuelle (degrés)
     latitude             DOUBLE PRECISION,                -- latitude actuelle (degrés)
     baro_altitude        DOUBLE PRECISION,                -- altitude barométrique (mètres)

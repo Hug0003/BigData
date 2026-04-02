@@ -21,27 +21,6 @@ class OpenSkyClient:
         response.raise_for_status()
         return response.json()
 
-class AeroAPIClient:
-    """
-    Client for interacting with FlightAware AeroAPI.
-    Now using credentials from environment variables.
-    """
-    BASE_URL = "https://aeroapi.flightaware.com/aeroapi"
-
-    def __init__(self, api_key: str):
-        self.headers = {
-            "x-apikey": api_key,
-            "Accept": "application/json"
-        }
-
-    def get_flight_track(self, ident: str) -> dict:
-        """Fetch the flight track (GPS coordinates) given a flight identifier."""
-        url = f"{self.BASE_URL}/flights/{ident}/track"
-        logger.info(f"Fetching flight track for {ident} from AeroAPI")
-        response = requests.get(url, headers=self.headers)
-        response.raise_for_status()
-        return response.json()
-
 class GeoapifyClient:
     """Client for interacting with Geoapify Reverse Geocoding API."""
     BASE_URL = "https://api.geoapify.com/v1/geocode/reverse"

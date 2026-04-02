@@ -11,7 +11,6 @@ Les données brutes sont collectées depuis des APIs publiques, stockées dans u
 APIs externes
   ├── OpenSky Network   → états en temps réel de tous les avions (ADS-B)
   ├── Geoapify          → reverse geocoding (lat/lon → adresse/pays)
-  └── FlightAware AeroAPI → suivi de vol (initialisé, non encore intégré)
 
 ┌─────────────────────────────────────────────────────────────────┐
 │  INGESTION  (src/main.py)                                        │
@@ -29,7 +28,6 @@ APIs externes
 │  Enrichissements :                                               │
 │   · origin_country      ← champ natif OpenSky                   │
 │   · current_country     ← reverse geocoding offline (GeoNames)  │
-│   · destination_country ← NULL (AeroAPI, à venir)               │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -111,7 +109,7 @@ python etl.py
 │
 ├── src/
 │   ├── main.py                 # pipeline d'ingestion (APIs → MinIO)
-│   ├── api_clients.py          # clients OpenSky, Geoapify, AeroAPI
+│   ├── api_clients.py          # clients OpenSky, Geoapify
 │   ├── minio_storage.py        # wrapper MinIO
 │   ├── migrate.py              # runner de migrations SQL
 │   └── migrations/
@@ -133,7 +131,7 @@ Table `aircraft_states` :
 | `origin_country`      | VARCHAR(100)     | Pays d'immatriculation (source OpenSky)          |
 | `current_country`     | VARCHAR(100)     | Pays survolé (reverse geocoding GPS)             |
 | `current_country_code`| CHAR(2)          | Code ISO-3166-1 alpha-2 (ex: `FR`)               |
-| `destination_country` | VARCHAR(100)     | Pays de destination — NULL pour l'instant        |
+
 | `longitude/latitude`  | DOUBLE PRECISION | Coordonnées GPS actuelles                        |
 | `baro_altitude`       | DOUBLE PRECISION | Altitude barométrique (mètres)                   |
 | `velocity`            | DOUBLE PRECISION | Vitesse sol (m/s)                                |
@@ -149,7 +147,7 @@ Table `aircraft_states` :
 - [x] Infrastructure Docker (MinIO, PostgreSQL, Kafka, Spark)
 - [x] Client OpenSky Network (`src/api_clients.py`)
 - [x] Client Geoapify reverse geocoding (`src/api_clients.py`)
-- [x] Client FlightAware AeroAPI — initialisé (`src/api_clients.py`)
+
 - [x] Wrapper MinIO avec sauvegarde horodatée (`src/minio_storage.py`)
 - [x] Pipeline d'ingestion OpenSky → MinIO (`src/main.py`)
 - [x] Enrichissement Geoapify → MinIO pour un échantillon de vols (`src/main.py`)
@@ -159,8 +157,7 @@ Table `aircraft_states` :
 - [x] Résolution du pays survolé pour tous les avions (GeoNames, sans appel API)
 
 ### À faire
-- [ ] Intégrer AeroAPI pour récupérer le pays de destination des vols
-- [ ] Ajouter une migration `002` pour les données AeroAPI (aéroports départ/arrivée)
+
 - [ ] Implémenter le streaming Kafka : ingestion continue toutes les N secondes
 - [ ] Traitement Spark : agrégations par pays, densité de trafic, etc.
 - [ ] Mettre en place une planification (cron / Airflow) pour `main.py` et `etl.py`

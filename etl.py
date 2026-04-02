@@ -5,7 +5,6 @@ Lit le dernier snapshot OpenSky depuis MinIO, enrichit chaque avion avec :
   - origin_country      : pays d'immatriculation (champ natif OpenSky)
   - current_country     : pays survolé, dérivé des coordonnées GPS en offline
                           (GeoNames via reverse_geocoder, pas d'appel API)
-  - destination_country : NULL pour l'instant (nécessite AeroAPI)
 
 Usage:
     python etl.py

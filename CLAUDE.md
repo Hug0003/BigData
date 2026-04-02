@@ -44,9 +44,8 @@ python notebook.py
 External APIs
   ├── OpenSky Network   → aircraft state vectors (real-time)
   ├── Geoapify          → reverse geocoding (lat/lng → address)
-  └── FlightAware AeroAPI → flight tracking (initialized, not yet used in pipeline)
 
-src/api_clients.py      → API client classes (OpenSkyClient, GeoapifyClient, AeroAPIClient)
+src/api_clients.py      → API client classes (OpenSkyClient, GeoapifyClient)
 src/minio_storage.py    → MinIO wrapper; saves raw JSON with timestamp-based keys
 src/main.py             → DataPipeline orchestrator: collect → store raw → enrich
 
@@ -61,5 +60,5 @@ notebook.py             → EDA + ETL script: read MinIO → pandas transform �
 ## Configuration
 
 All credentials and endpoints are in `.env`. The `.env` file is tracked by git (modified in working tree) — do not commit API keys. Key variables:
-- `GEOAPIFY_API_KEY`, `AEROAPI_KEY`
+- `GEOAPIFY_API_KEY`
 - `MINIO_*`, `POSTGRES_*`, `KAFKA_*`

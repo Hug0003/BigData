@@ -37,7 +37,7 @@ class MinioStorage:
     def save_raw_json(self, data_type: str, data: dict) -> str:
         """
         Saves raw JSON data to MinIO.
-        :param data_type: Identifier for the type of data (e.g., 'aeroapi_flight', 'gmaps_geocode')
+        :param data_type: Identifier for the type of data (e.g., 'opensky_states', 'geoapify_geocode')
         :param data: The raw data as a dictionary.
         :return: The object name (path) in MinIO.
         """
