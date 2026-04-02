@@ -7,3 +7,5 @@ sqlalchemy
 ipykernel
 reverse_geocoder
 pycountry
+streamlit
+plotly

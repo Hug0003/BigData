@@ -97,6 +97,14 @@ Lit le dernier snapshot OpenSky depuis MinIO, résout le pays survolé pour chaq
 python etl.py
 ```
 
+### 4. Dashboard — Visualisation
+
+```bash
+streamlit run dashboard.py
+```
+
+Ouvre http://localhost:8501 dans le navigateur.
+
 ---
 
 ## Structure des fichiers
@@ -155,11 +163,11 @@ Table `aircraft_states` :
 - [x] Schéma PostgreSQL `aircraft_states` (`src/migrations/001_initial_schema.sql`)
 - [x] ETL MinIO → PostgreSQL avec reverse geocoding offline (`etl.py`)
 - [x] Résolution du pays survolé pour tous les avions (GeoNames, sans appel API)
+- [x] Dashboard Streamlit : carte mondiale, KPIs, top pays, table filtrée (`dashboard.py`)
 
 ### À faire
 
 - [ ] Implémenter le streaming Kafka : ingestion continue toutes les N secondes
 - [ ] Traitement Spark : agrégations par pays, densité de trafic, etc.
 - [ ] Mettre en place une planification (cron / Airflow) pour `main.py` et `etl.py`
-- [ ] Tableau de bord de visualisation (Grafana, Metabase, ou Streamlit)
 - [ ] Gestion des doublons lors des chargements répétés (upsert par `icao24` + `data_timestamp`)

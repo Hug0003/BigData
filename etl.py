@@ -3,8 +3,12 @@ ETL : MinIO (données brutes) → PostgreSQL (données structurées)
 
 Lit le dernier snapshot OpenSky depuis MinIO, enrichit chaque avion avec :
   - origin_country      : pays d'immatriculation (champ natif OpenSky)
-  - current_country     : pays survolé, dérivé des coordonnées GPS en offline
-                          (GeoNames via reverse_geocoder, pas d'appel API)
+  - current_country     : pays survolé OU océan/mer survolé(e)
+
+Détection terre/mer :
+  - geopandas + Natural Earth (polygones pays, résolution 110m) → point-in-polygon.
+  - Si le point n'est dans aucun polygone → océan → _get_ocean_name().
+  - La jointure spatiale (R-tree) traite les 5000+ avions en une seule passe.
 
 Usage:
     python etl.py
@@ -13,8 +17,7 @@ import os
 import logging
 from datetime import datetime, timezone
 
-import pycountry
-import reverse_geocoder as rg
+import geopandas as gpd
 import pandas as pd
 from dotenv import load_dotenv
 from sqlalchemy import create_engine
@@ -45,6 +48,33 @@ DB_COLUMNS = [
     "squawk", "position_source", "data_timestamp",
 ]
 
+# Polygones pays chargés une seule fois (Natural Earth 110m, inclus dans geodatasets)
+_WORLD_GDF: gpd.GeoDataFrame | None = None
+
+
+_NE_COUNTRIES_URL = (
+    "https://naciscdn.org/naturalearth/110m/cultural/ne_110m_admin_0_countries.zip"
+)
+
+
+def _get_world() -> gpd.GeoDataFrame:
+    """Charge les polygones pays Natural Earth 110m (téléchargé et mis en cache par pooch)."""
+    global _WORLD_GDF
+    if _WORLD_GDF is None:
+        import pooch
+        paths = pooch.retrieve(
+            url=_NE_COUNTRIES_URL,
+            known_hash=None,
+            processor=pooch.Unzip(),
+        )
+        shp = next(p for p in paths if p.endswith(".shp"))
+        world = gpd.read_file(shp)
+        _WORLD_GDF = world[["NAME", "ISO_A2", "geometry"]].rename(
+            columns={"NAME": "country_name", "ISO_A2": "country_code"}
+        )
+        logger.info("Polygones pays chargés : %d pays", len(_WORLD_GDF))
+    return _WORLD_GDF
+
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -69,6 +99,41 @@ def _make_engine():
         f"{os.getenv('POSTGRES_DB', 'bigdata_db')}"
     )
     return create_engine(url)
+
+
+def _get_ocean_name(lat: float, lon: float) -> str:
+    """Retourne le nom de l'océan ou de la mer pour un point en dehors des terres."""
+    if lon > 180:
+        lon -= 360
+
+    if lat > 66.5:
+        return "Arctic Ocean"
+    if lat < -60:
+        return "Southern Ocean"
+
+    if 30 <= lat <= 47 and 5 <= lon <= 37:
+        return "Mediterranean Sea"
+    if 10 <= lat <= 23 and -87 <= lon <= -60:
+        return "Caribbean Sea"
+    if 22 <= lat <= 32 and 32 <= lon <= 43:
+        return "Red Sea"
+    if 23 <= lat <= 30 and 48 <= lon <= 60:
+        return "Persian Gulf"
+    if 0 <= lat <= 22 and 50 <= lon <= 78:
+        return "Arabian Sea"
+    if 5 <= lat <= 23 and 80 <= lon <= 100:
+        return "Bay of Bengal"
+    if 50 <= lat <= 66 and -10 <= lon <= 30:
+        return "North Sea / Baltic Sea"
+
+    if 20 <= lon <= 120 and lat < 30:
+        return "Indian Ocean"
+    if lon >= 120 or lon <= -70:
+        return "Pacific Ocean"
+    if -70 <= lon <= 20:
+        return "Atlantic Ocean"
+
+    return "Ocean"
 
 
 # ---------------------------------------------------------------------------
@@ -102,7 +167,6 @@ def transform(raw_data: dict) -> pd.DataFrame:
     df["callsign"] = df["callsign"].str.strip()
     df["data_timestamp"] = data_ts
 
-    # Ne garder que les avions en vol avec des coordonnées GPS valides
     df = df[
         (df["on_ground"] == False)
         & df["longitude"].notna()
@@ -116,27 +180,52 @@ def transform(raw_data: dict) -> pd.DataFrame:
 
 def _add_current_country(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Reverse-geocoding en masse via GeoNames (offline, pas d'appel API).
-    reverse_geocoder.search() utilise un KD-tree sur les données GeoNames :
-    renvoie le code pays ISO-3166-1 alpha-2 le plus proche de chaque point.
-    Les avions au-dessus des océans reçoivent le code du pays côtier le plus proche.
+    Détermine le pays ou l'océan survolé pour chaque avion via point-in-polygon.
+
+    1. Construit un GeoDataFrame de points (positions avions).
+    2. Jointure spatiale avec les polygones pays Natural Earth (R-tree).
+    3. Les avions sans pays (en mer) reçoivent le nom de l'océan via coordonnées.
     """
-    logger.info("Reverse geocoding offline de %d positions (GeoNames)...", len(df))
-    coords = list(zip(df["latitude"], df["longitude"]))
-    results = rg.search(coords, verbose=False)
+    logger.info("Chargement des polygones pays (Natural Earth)...")
+    world = _get_world()
 
-    df["current_country_code"] = [r["cc"] for r in results]
-    df["current_country"] = df["current_country_code"].map(_cc_to_name)
-    logger.info("Reverse geocoding terminé.")
+    logger.info("Détection pays/océan pour %d avions (point-in-polygon)...", len(df))
+    aircraft_gdf = gpd.GeoDataFrame(
+        df.reset_index(drop=True),
+        geometry=gpd.points_from_xy(df["longitude"], df["latitude"]),
+        crs="EPSG:4326",
+    )
+
+    joined = gpd.sjoin(
+        aircraft_gdf,
+        world.set_crs("EPSG:4326", allow_override=True),
+        how="left",
+        predicate="within",
+    )
+
+    # En cas de doublon (avion dans plusieurs polygones imbriqués), garder le premier
+    joined = joined[~joined.index.duplicated(keep="first")]
+
+    land_count = joined["country_name"].notna().sum()
+    sea_count = joined["country_name"].isna().sum()
+    logger.info("  Sur terre : %d  |  En mer : %d", land_count, sea_count)
+
+    df["current_country"] = joined["country_name"].where(
+        joined["country_name"].notna(),
+        other=df.apply(
+            lambda row: _get_ocean_name(row["latitude"], row["longitude"]), axis=1
+        ),
+    ).values
+
+    # Ne conserver que les codes ISO-2 valides (exactement 2 lettres)
+    # Natural Earth retourne "-99" pour les territoires sans code officiel
+    raw_codes = joined["country_code"].where(joined["country_code"].notna(), other="").values
+    df["current_country_code"] = [
+        c if (isinstance(c, str) and len(c) == 2 and c.isalpha()) else ""
+        for c in raw_codes
+    ]
+
     return df
-
-
-def _cc_to_name(cc: str) -> str:
-    """Convertit un code ISO-2 (ex: 'FR') en nom complet (ex: 'France')."""
-    try:
-        return pycountry.countries.get(alpha_2=cc).name
-    except AttributeError:
-        return cc
 
 
 # ---------------------------------------------------------------------------

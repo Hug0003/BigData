@@ -7,7 +7,9 @@
       "Bash(python -m venv venv)",
       "Bash(venv/Scripts/pip install:*)",
       "Bash(venv/Scripts/python src/migrate.py)",
-      "Bash(venv/Scripts/python etl.py)"
+      "Bash(venv/Scripts/python etl.py)",
+      "Bash(venv/Scripts/python -c ':*)",
+      "Bash(docker-compose -f d:/BigData/docker-compose.yml ps)"
     ]
   }
 }
