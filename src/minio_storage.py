@@ -77,4 +77,4 @@ class MinioStorage:
         finally:
             if 'response' in locals():
                 response.close()
-            response.release_conn()
+                response.release_conn()

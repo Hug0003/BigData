@@ -5,3 +5,5 @@ pandas
 psycopg2-binary
 sqlalchemy
 ipykernel
+reverse_geocoder
+pycountry

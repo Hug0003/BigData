@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(docker-compose ps:*)",
+      "Bash(venv/Scripts/python src/main.py)",
+      "Bash(python src/main.py)",
+      "Bash(python -m venv venv)",
+      "Bash(venv/Scripts/pip install:*)",
+      "Bash(venv/Scripts/python src/migrate.py)",
+      "Bash(venv/Scripts/python etl.py)"
+    ]
+  }
+}
