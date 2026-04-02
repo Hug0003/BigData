@@ -20,11 +20,11 @@ load_dotenv()
 
 # %%
 storage = MinioStorage(
-    endpoint=os.getenv("MINIO_ENDPOINT", "localhost:9000"),
-    access_key=os.getenv("MINIO_ACCESS_KEY", "minioadmin"),
-    secret_key=os.getenv("MINIO_SECRET_KEY", "minioadmin"),
-    bucket_name=os.getenv("MINIO_BUCKET_NAME", "raw-api-data"),
-    secure=os.getenv("MINIO_SECURE", "false").lower() == "true"
+    endpoint=os.getenv("MINIO_ENDPOINT"),
+    access_key=os.getenv("MINIO_ACCESS_KEY"),
+    secret_key=os.getenv("MINIO_SECRET_KEY"),
+    bucket_name=os.getenv("MINIO_BUCKET_NAME"),
+    secure=os.getenv("MINIO_SECURE").lower() == "true"
 )
 
 # On liste tous les fichiers du dossier opensky_states/
@@ -74,7 +74,7 @@ if latest_object and "states" in raw_data and raw_data["states"]:
     
     print(f"Nombre total d'avions détectés : {len(df)}")
     print(f"Nombre d'avions en vol avec des coordonnées validées : {len(df_clean)}")
-    display(df_clean.head())
+    print(df_clean.head())
 
 # %% [markdown]
 # ## 3. Envoi des données vers PostgreSQL
@@ -82,11 +82,11 @@ if latest_object and "states" in raw_data and raw_data["states"]:
 
 # %%
 if latest_object and "df_clean" in locals() and not df_clean.empty:
-    db_user = os.getenv("POSTGRES_USER", "admin")
-    db_pass = os.getenv("POSTGRES_PASSWORD", "admin123")
-    db_host = os.getenv("POSTGRES_HOST", "localhost")
-    db_port = os.getenv("POSTGRES_PORT", "5432")
-    db_name = os.getenv("POSTGRES_DB", "bigdata_db")
+    db_user = os.getenv("POSTGRES_USER")
+    db_pass = os.getenv("POSTGRES_PASSWORD")
+    db_host = os.getenv("POSTGRES_HOST")
+    db_port = os.getenv("POSTGRES_PORT")
+    db_name = os.getenv("POSTGRES_DB")
     
     # Chaîne de connexion PostgreSQL
     engine = create_engine(f"postgresql://{db_user}:{db_pass}@{db_host}:{db_port}/{db_name}")
