@@ -7,15 +7,16 @@ services:
     container_name: bigdata-postgres
     restart: always
     environment:
+      TZ: ${TZ:-Europe/Paris}
       POSTGRES_USER: ${POSTGRES_USER:-admin}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-admin123}
-      POSTGRES_DB: ${POSTGRES_DB:-bigdata_db}
+      POSTGRES_DB: ${POSTGRES_DB:-postgres}
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-admin} -d ${POSTGRES_DB:-postgres}"]
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-admin} -d ${POSTGRES_DB:-postgres}" ]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -29,50 +30,40 @@ services:
       - "9000:9000" # API S3
       - "9001:9001" # Interface Console
     environment:
+      TZ: ${TZ:-Europe/Paris}
       MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-minioadmin}
       MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-minioadmin}
     volumes:
       - minio_data:/data
     command: server /data --console-address ":9001"
 
-  zookeeper:
-    image: confluentinc/cp-zookeeper:7.5.0
-    container_name: zookeeper
+  # Exporteur de métriques pour Prometheus
+  exporter:
+    build:
+      context: .
+      dockerfile: Dockerfile-exporter
+    container_name: bigdata-exporter
     restart: always
-    environment:
-      ZOOKEEPER_CLIENT_PORT: ${ZOOKEEPER_PORT}
-      ZOOKEEPER_TICK_TIME: 2000
-
-  kafka:
-    image: confluentinc/cp-kafka:7.5.0
-    container_name: kafka
-    depends_on:
-      - zookeeper
     ports:
-      - "${KAFKA_PORT}:${KAFKA_PORT}"
+      - "8000:8000"
     environment:
-      KAFKA_BROKER_ID: 1
-      KAFKA_ZOOKEEPER_CONNECT: zookeeper:${ZOOKEEPER_PORT}
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:${KAFKA_PORT}
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-
-  spark-master:
-    image: apache/spark:3.5.0
-    container_name: spark-master
-    command: >
-      /opt/spark/bin/spark-class org.apache.spark.deploy.master.Master
-    ports:
-      - "${SPARK_MASTER_PORT}:7077"
-      - "${SPARK_UI_PORT}:8080"
-
-  spark-worker:
-    image: apache/spark:3.5.0
-    container_name: spark-worker
+      - TZ=${TZ:-Europe/Paris}
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=${POSTGRES_USER:-admin}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-admin123}
+      - POSTGRES_DB=${POSTGRES_DB:-postgres}
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY:-minioadmin}
+      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY:-minioadmin}
+      - MINIO_BUCKET_NAME=${MINIO_BUCKET_NAME:-raw-api-data}
+      - MINIO_SECURE=${MINIO_SECURE:-false}
+      - METRICS_INTERVAL=${METRICS_INTERVAL:-30}
     depends_on:
-      - spark-master
-    command: >
-      /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077
+      postgres:
+        condition: service_healthy
 
+  # Prometheus pour collecter les métriques
   prometheus:
     image: prom/prometheus:latest
     container_name: prometheus
@@ -81,7 +72,12 @@ services:
       - "9090:9090"
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    environment:
+      - TZ=${TZ:-Europe/Paris}
+    depends_on:
+      - exporter
 
+  # Grafana pour la visualisation
   grafana:
     image: grafana/grafana-enterprise
     container_name: grafana
@@ -89,8 +85,15 @@ services:
     ports:
       - "3050:3000"
     environment:
-      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - TZ=${TZ:-Europe/Paris}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning
+      - ./grafana/dashboards:/var/lib/grafana/dashboards
+    depends_on:
+      - prometheus
 
+  # Dashboard Streamlit
   dashboard:
     build:
       context: .
@@ -100,6 +103,7 @@ services:
     ports:
       - "8501:8501"
     environment:
+      - TZ=${TZ:-Europe/Paris}
       - POSTGRES_USER=${POSTGRES_USER:-admin}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-admin123}
       - POSTGRES_HOST=postgres
@@ -108,11 +112,12 @@ services:
     volumes:
       - .:/app
     working_dir: /app
-    command: streamlit run dashboard.py --server.port=8501 --server.address=0.0.0.0
+    command: streamlit run dashboard.py --server.port=8501 --server.address=0.0.0.0 --server.headless=true --server.enableCORS=false --server.enableXsrfProtection=false --server.enableWebsocketCompression=false --server.fileWatcherType=none
     depends_on:
       postgres:
         condition: service_healthy
 
+  # Airflow pour l'orchestration
   airflow:
     build:
       context: .
@@ -122,10 +127,14 @@ services:
     ports:
       - "8081:8080"
     environment:
+      - TZ=${TZ:-Europe/Paris}
+      - AIRFLOW__CORE__DEFAULT_TIMEZONE=Europe/Paris
       - AIRFLOW__CORE__EXECUTOR=LocalExecutor
       - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://${POSTGRES_USER:-admin}:${POSTGRES_PASSWORD:-admin123}@postgres:5432/${POSTGRES_DB:-postgres}
       - AIRFLOW__CORE__LOAD_EXAMPLES=false
-      - AIRFLOW__CORE__FERNET_KEY=46BKJoQYlPPOexq0OhDZnIlNepKFf87WFwLbfzqDDho=
+      - AIRFLOW__CORE__FERNET_KEY=${AIRFLOW__CORE__FERNET_KEY}
+      - _AIRFLOW_WWW_USER_USERNAME=${AIRFLOW_USER:-admin}
+      - _AIRFLOW_WWW_USER_PASSWORD=${AIRFLOW_PASSWORD:-admin}
       - PYTHONPATH=/opt/airflow/project
       - POSTGRES_USER=${POSTGRES_USER:-admin}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-admin123}
@@ -136,12 +145,15 @@ services:
       - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY:-minioadmin}
       - MINIO_SECRET_KEY=${MINIO_SECRET_KEY:-minioadmin}
       - MINIO_BUCKET_NAME=${MINIO_BUCKET_NAME:-raw-api-data}
-      - MINIO_SECURE=false
+      - MINIO_SECURE=${MINIO_SECURE:-false}
       - GEOAPIFY_API_KEY=${GEOAPIFY_API_KEY}
+      - OPENSKY_USERNAME=${OPENSKY_USERNAME}
+      - OPENSKY_PASSWORD=${OPENSKY_PASSWORD}
     volumes:
       - ./dags:/opt/airflow/dags
       - .:/opt/airflow/project
-    command: airflow standalone
+    command: >
+      bash -c " airflow db init && airflow users create --username ${AIRFLOW_USER:-admin} --password ${AIRFLOW_PASSWORD:-admin} --firstname Admin --lastname User --role Admin --email admin@example.com || true && airflow webserver & airflow scheduler & airflow triggerer"
     depends_on:
       postgres:
         condition: service_healthy

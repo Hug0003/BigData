@@ -1,0 +1,151 @@
+{
+  "title": "Aircraft Tracking — Pipeline Monitor",
+  "uid": "aircraft-pipeline",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "30s",
+  "time": { "from": "now-3h", "to": "now" },
+  "panels": [
+
+    { "type": "text", "id": 1, "gridPos": { "x": 0, "y": 0, "w": 24, "h": 2 },
+      "options": { "mode": "markdown", "content": "## ✈ Données traitées — PostgreSQL" } },
+
+    { "type": "stat", "id": 2, "title": "Lignes totales en base",
+      "gridPos": { "x": 0, "y": 2, "w": 6, "h": 4 },
+      "datasource": "Prometheus",
+      "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "thresholds" },
+        "thresholds": { "steps": [{ "color": "blue", "value": null }] } } },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "orientation": "auto", "textMode": "auto", "colorMode": "background" },
+      "targets": [{ "expr": "aircraft_states_total_rows", "instant": true, "legendFormat": "" }] },
+
+    { "type": "stat", "id": 3, "title": "Snapshots collectés",
+      "gridPos": { "x": 6, "y": 2, "w": 6, "h": 4 },
+      "datasource": "Prometheus",
+      "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "thresholds" },
+        "thresholds": { "steps": [{ "color": "purple", "value": null }] } } },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background" },
+      "targets": [{ "expr": "aircraft_states_snapshots_count", "instant": true, "legendFormat": "" }] },
+
+    { "type": "stat", "id": 4, "title": "Avions dans le dernier snapshot",
+      "gridPos": { "x": 12, "y": 2, "w": 6, "h": 4 },
+      "datasource": "Prometheus",
+      "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "thresholds" },
+        "thresholds": { "steps": [
+          { "color": "red", "value": null },
+          { "color": "orange", "value": 1000 },
+          { "color": "green", "value": 3000 }
+        ] } } },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background" },
+      "targets": [{ "expr": "aircraft_states_rows_latest_snapshot", "instant": true, "legendFormat": "" }] },
+
+    { "type": "stat", "id": 5, "title": "Dernier snapshot (il y a)",
+      "gridPos": { "x": 18, "y": 2, "w": 6, "h": 4 },
+      "datasource": "Prometheus",
+      "fieldConfig": { "defaults": { "unit": "s", "color": { "mode": "thresholds" },
+        "thresholds": { "steps": [
+          { "color": "green", "value": null },
+          { "color": "orange", "value": 600 },
+          { "color": "red", "value": 1800 }
+        ] } } },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background" },
+      "targets": [{ "expr": "time() - aircraft_states_latest_snapshot_unixtime", "instant": true, "legendFormat": "" }] },
+
+    { "type": "text", "id": 6, "gridPos": { "x": 0, "y": 6, "w": 24, "h": 2 },
+      "options": { "mode": "markdown", "content": "## 🗄 Données brutes — MinIO" } },
+
+    { "type": "stat", "id": 7, "title": "Fichiers bruts stockés",
+      "gridPos": { "x": 0, "y": 8, "w": 8, "h": 4 },
+      "datasource": "Prometheus",
+      "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "thresholds" },
+        "thresholds": { "steps": [{ "color": "blue", "value": null }] } } },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background" },
+      "targets": [{ "expr": "minio_opensky_raw_files_total", "instant": true, "legendFormat": "" }] },
+
+    { "type": "stat", "id": 8, "title": "Dernier fichier brut (il y a)",
+      "gridPos": { "x": 8, "y": 8, "w": 8, "h": 4 },
+      "datasource": "Prometheus",
+      "fieldConfig": { "defaults": { "unit": "s", "color": { "mode": "thresholds" },
+        "thresholds": { "steps": [
+          { "color": "green", "value": null },
+          { "color": "orange", "value": 600 },
+          { "color": "red", "value": 1800 }
+        ] } } },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background" },
+      "targets": [{ "expr": "time() - minio_opensky_latest_file_unixtime", "instant": true, "legendFormat": "" }] },
+
+    { "type": "stat", "id": 9, "title": "Ratio traité / brut",
+      "gridPos": { "x": 16, "y": 8, "w": 8, "h": 4 },
+      "datasource": "Prometheus",
+      "fieldConfig": { "defaults": { "unit": "percentunit", "color": { "mode": "thresholds" },
+        "thresholds": { "steps": [
+          { "color": "red", "value": null },
+          { "color": "orange", "value": 0.5 },
+          { "color": "green", "value": 0.9 }
+        ] } } },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background" },
+      "targets": [{ "expr": "aircraft_states_snapshots_count / minio_opensky_raw_files_total", "instant": true, "legendFormat": "" }] },
+
+    { "type": "text", "id": 10, "gridPos": { "x": 0, "y": 12, "w": 24, "h": 2 },
+      "options": { "mode": "markdown", "content": "## ⚙ Pipeline — Airflow" } },
+
+    { "type": "stat", "id": 11, "title": "Prochain déclenchement (dans)",
+      "gridPos": { "x": 0, "y": 14, "w": 8, "h": 4 },
+      "datasource": "Prometheus",
+      "fieldConfig": { "defaults": { "unit": "s", "color": { "mode": "thresholds" },
+        "thresholds": { "steps": [
+          { "color": "green", "value": null },
+          { "color": "orange", "value": 300 },
+          { "color": "blue", "value": 600 }
+        ] } } },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background" },
+      "targets": [{ "expr": "airflow_dag_next_run_unixtime{dag_id=\"flight_etl_pipeline\"} - time()", "instant": true, "legendFormat": "" }] },
+
+    { "type": "stat", "id": 12, "title": "Dernier run réussi (il y a)",
+      "gridPos": { "x": 8, "y": 14, "w": 8, "h": 4 },
+      "datasource": "Prometheus",
+      "fieldConfig": { "defaults": { "unit": "s", "color": { "mode": "thresholds" },
+        "thresholds": { "steps": [
+          { "color": "green", "value": null },
+          { "color": "orange", "value": 600 },
+          { "color": "red", "value": 1800 }
+        ] } } },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background" },
+      "targets": [{ "expr": "time() - airflow_dag_last_run_unixtime{dag_id=\"flight_etl_pipeline\",state=\"success\"}", "instant": true, "legendFormat": "" }] },
+
+    { "type": "stat", "id": 13, "title": "Durée du dernier run",
+      "gridPos": { "x": 16, "y": 14, "w": 8, "h": 4 },
+      "datasource": "Prometheus",
+      "fieldConfig": { "defaults": { "unit": "s", "color": { "mode": "thresholds" },
+        "thresholds": { "steps": [
+          { "color": "green", "value": null },
+          { "color": "orange", "value": 120 },
+          { "color": "red", "value": 300 }
+        ] } } },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background" },
+      "targets": [{ "expr": "airflow_dag_last_run_duration_seconds{dag_id=\"flight_etl_pipeline\"}", "instant": true, "legendFormat": "" }] },
+
+    { "type": "text", "id": 14, "gridPos": { "x": 0, "y": 18, "w": 24, "h": 2 },
+      "options": { "mode": "markdown", "content": "## 📈 Évolution dans le temps" } },
+
+    { "type": "timeseries", "id": 15, "title": "Avions dans chaque snapshot",
+      "gridPos": { "x": 0, "y": 20, "w": 12, "h": 8 },
+      "datasource": "Prometheus",
+      "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "palette-classic" } } },
+      "options": { "tooltip": { "mode": "single" }, "legend": { "displayMode": "list" } },
+      "targets": [{ "expr": "aircraft_states_rows_latest_snapshot", "legendFormat": "Avions / snapshot" }] },
+
+    { "type": "timeseries", "id": 16, "title": "Fichiers bruts cumulés (MinIO)",
+      "gridPos": { "x": 12, "y": 20, "w": 12, "h": 8 },
+      "datasource": "Prometheus",
+      "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "palette-classic" } } },
+      "options": { "tooltip": { "mode": "single" }, "legend": { "displayMode": "list" } },
+      "targets": [{ "expr": "minio_opensky_raw_files_total", "legendFormat": "Fichiers bruts" }] },
+
+    { "type": "timeseries", "id": 17, "title": "Durée des runs Airflow",
+      "gridPos": { "x": 0, "y": 28, "w": 24, "h": 8 },
+      "datasource": "Prometheus",
+      "fieldConfig": { "defaults": { "unit": "s", "color": { "mode": "palette-classic" } } },
+      "options": { "tooltip": { "mode": "single" }, "legend": { "displayMode": "list" } },
+      "targets": [{ "expr": "airflow_dag_last_run_duration_seconds", "legendFormat": "{{dag_id}}" }] }
+  ]
+}

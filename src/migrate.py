@@ -21,11 +21,11 @@ MIGRATIONS_DIR = Path(__file__).parent / "migrations"
 
 def get_conn():
     return psycopg2.connect(
-        host=os.getenv("POSTGRES_HOST", "localhost"),
+        host=os.getenv("POSTGRES_HOST", "postgres"),
         port=int(os.getenv("POSTGRES_PORT", 5432)),
         user=os.getenv("POSTGRES_USER", "admin"),
         password=os.getenv("POSTGRES_PASSWORD", "admin123"),
-        dbname=os.getenv("POSTGRES_DB", "bigdata_db"),
+        dbname=os.getenv("POSTGRES_DB", "postgres"),
     )
 
 

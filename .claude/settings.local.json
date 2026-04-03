@@ -9,7 +9,9 @@
       "Bash(venv/Scripts/python src/migrate.py)",
       "Bash(venv/Scripts/python etl.py)",
       "Bash(venv/Scripts/python -c ':*)",
-      "Bash(docker-compose -f d:/BigData/docker-compose.yml ps)"
+      "Bash(docker-compose -f d:/BigData/docker-compose.yml ps)",
+      "Bash(docker exec:*)",
+      "Bash(docker-compose up:*)"
     ]
   }
 }

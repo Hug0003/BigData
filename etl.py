@@ -94,9 +94,9 @@ def _make_engine():
     url = (
         f"postgresql://{os.getenv('POSTGRES_USER', 'admin')}:"
         f"{os.getenv('POSTGRES_PASSWORD', 'admin123')}@"
-        f"{os.getenv('POSTGRES_HOST', 'localhost')}:"
+        f"{os.getenv('POSTGRES_HOST', 'postgres')}:"
         f"{os.getenv('POSTGRES_PORT', '5432')}/"
-        f"{os.getenv('POSTGRES_DB', 'bigdata_db')}"
+        f"{os.getenv('POSTGRES_DB', 'postgres')}"
     )
     return create_engine(url)
 
