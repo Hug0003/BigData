@@ -42,8 +42,13 @@ Une fois lancé, les services suivants sont disponibles sur votre machine locale
    - Une clé API [Geoapify](https://myprojects.geoapify.com/) (gratuite) pour la géolocalisation inversée.
 
 2. **Configuration** :
-   - Copiez le fichier d'exemple : `cp .env.example .env`.
-   - Remplissez votre clé `GEOAPIFY_API_KEY` dans le fichier `.env`.
+    - Copiez le fichier d'exemple : `cp .env.example .env`.
+    - Remplissez votre clé `GEOAPIFY_API_KEY`.
+    - **Générez une clé Fernet** pour Airflow (obligatoire) :
+      ```powershell
+      python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+      ```
+      Copiez cette clé dans la variable `AIRFLOW__CORE__FERNET_KEY` de votre fichier `.env`.
 
 3. **Lancement** :
    ```powershell
@@ -56,7 +61,7 @@ Une fois lancé, les services suivants sont disponibles sur votre machine locale
 
 Le projet utilise **Airflow** pour automatiser la récupération des données toutes les quelques minutes. 
 - Allez sur [http://localhost:8081](http://localhost:8081).
-- Activez le DAG nommé `aircraft_tracking_pipeline`.
+- Activez le DAG nommé `flight_etl_pipeline`.
 - Le pipeline va automatiquement :
     1. Télécharger les données depuis OpenSky.
     2. Les stocker brute dans MinIO.
